@@ -20,7 +20,6 @@ import org.apache.http.impl.client.HttpClients
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.Duration
-//import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Await, Future}
 import scala.util.Try
 import scala.util.parsing.json.JSONObject
@@ -119,6 +118,22 @@ object Main {
     }
   }
 
+  def processGroup(group: NewsgroupInfo, startTimestamp: Long): Unit = {
+    val client = new NNTPClient()
+    client.setSocketFactory(getSocketFactory)
+    client.connect(nntpServer, nntpPort)
+    client.authenticate(username, password)
+
+    client.selectNewsgroup(group.getNewsgroup)
+    println(s"updating for ${group.getNewsgroup}")
+    client.iterateArticleInfo(group.getFirstArticleLong, group.getLastArticleLong)
+      .filter { article =>
+        parseDate(article.getDate).getOrElse(System.currentTimeMillis()) >= startTimestamp
+      }.foreach { article =>
+        processMessage(client, group.getNewsgroup, article.getArticleNumberLong)
+      }
+  }
+
   /**
    * Parses message and uploads it to the server
    */
@@ -135,23 +150,6 @@ object Main {
         println(s"processed $amount requests, ${(1.0 * amount) / timeDiff} requests/sec")
       }
     }.getOrElse(messagesErrored.incrementAndGet())
-  }
-
-  def processGroup(group: NewsgroupInfo, startTimestamp: Long): Unit = {
-    val client = new NNTPClient()
-    client.setSocketFactory(getSocketFactory)
-    client.connect(nntpServer, nntpPort)
-    client.authenticate(username, password)
-
-    client.selectNewsgroup(group.getNewsgroup)
-    println(s"updating for ${group.getNewsgroup}")
-    client.iterateArticleInfo(group.getFirstArticleLong, group.getLastArticleLong)
-      .filter { article =>
-        parseDate(article.getDate).getOrElse(System.currentTimeMillis()) >= startTimestamp
-    }.foreach { article =>
-      processMessage(client, group.getNewsgroup, article.getArticleNumberLong)
-    }
-
   }
 
   def main(args: Array[String]): Unit = {
@@ -211,7 +209,8 @@ object Main {
       val futures = client.listNewsgroups().map(group => Future { processGroup(group) })
       Await.ready(Future.sequence(futures.toList), Duration.Inf)
     } else {
-      client.listNewsgroups().foreach(group => Future { processGroup(group, backfillFrom) })
+      val futures = client.listNewsgroups().map(group => Future { processGroup(group, backfillFrom) })
+      Await.ready(Future.sequence(futures.toList), Duration.Inf)
     }
     println(s"processed: $messagesProcessed messages in ${System.currentTimeMillis() / 1000 - startTime} seconds")
     println(s"${messagesErrored.get()} messaged were not processed due to errors")

@@ -1,0 +1,6 @@
+username=<username>
+password=<password>
+nntpServer=news.csh.rit.edu
+nntpPort=563
+moduleName=news
+apiServer=http://localhost:8080

@@ -1,6 +1,5 @@
 package net.digitalbebop;
 
-
 option java_package = "net.digitalbebop";
 option java_outer_classname = "ClientRequests";
 
@@ -8,15 +7,16 @@ option java_outer_classname = "ClientRequests";
 // element. They are responsible for generating an unique ID `moduleId`
 // that will always represent the same data.
 message IndexRequest {
+
     // Special keywords used in searching.
     repeated string tags = 1;
-    
+
     // The CSH username of the person who generated this index
     optional string username = 2;
-    
+
     // The module's self-reported unique name
     required string moduleName = 3;
-    
+
     // The unique ID given to this index record by the module
     required string moduleId = 4;
 
@@ -28,7 +28,7 @@ message IndexRequest {
     // This data is only used for indexing and when never be shown to the end
     // user. This should include things like file format, movie lenght, actors, etc.
     required string indexData = 6;
-    
+
     // The data to be stored as what was indexed. This allow end users to 
     // get the raw data that was index. If this is not given, then the 
     // indexData will be used as this.
@@ -38,6 +38,11 @@ message IndexRequest {
     // This allows end users to dowload the actual data that was indexed
     // and not just a string of the text.
     optional bytes rawData = 7;
+
+    // An optional timestamp to provide when this object was created. If this is not provided,
+    // then the current timestamp will be used. This is useful when doing a backfill and the
+    // element needs to have its original timestamp associated with it.
+    optional int64 timestamp = 8;
 }
 
 // Tells the server that the given element has been should be marked as

@@ -11,13 +11,11 @@ Seq(PB.protobufSettings: _*)
 
 version in protobufConfig := "2.6.1"
 
-libraryDependencies += "commons-net" % "commons-net" % "3.3"
-
-libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.5"
-
-libraryDependencies += "commons-io" % "commons-io" % "2.4"
-
-libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.5"
+libraryDependencies ++= Seq("commons-net" % "commons-net" % "3.3",
+  "org.apache.httpcomponents" % "httpclient" % "4.5",
+  "commons-io" % "commons-io" % "2.4",
+  "org.apache.httpcomponents" % "httpclient" % "4.5",
+  "commons-cli" % "commons-cli" % "1.3.1")
 
 assemblySettings
 

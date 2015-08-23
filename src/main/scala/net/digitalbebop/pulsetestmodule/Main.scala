@@ -78,19 +78,21 @@ object Main {
 
   def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
     val builder = IndexRequest.newBuilder()
-    builder.setIndexData(indexData)
+    builder.setIndexData(indexData.replaceAll("[\n\r]", ""));
 
     builder.setMetaTags(new JSONObject(Map(("format", "text"), ("channel", channel))).toString())
-    headers.get("Date").foreach { dateStr => parseDate(dateStr).foreach(builder.setTimestamp) }
+    headers.get("Date").foreach { dateStr =>
+      parseDate(dateStr).foreach(builder.setTimestamp)
+    }
     builder.setModuleId(channel + "-" + id.toString)
     builder.setModuleName(moduleName)
     builder.addTags("news")
     builder.addTags(channel)
     headers.get("From").map { from =>
-        val splits = from.replaceAll("[\\<\\>\"]", "").toLowerCase.split(" ")
+        val splits = from.replaceAll("[\\(\\)\\<\\>\"]", "").toLowerCase.split(" ")
         splits.foreach(builder.addTags)
         val email = splits.last
-        builder.setUsername(email.split("@").head)
+        builder.setUsername(email.split("@").head.replace(")", ""))
     }
     builder.build()
   }
@@ -149,7 +151,9 @@ object Main {
         val timeDiff = System.currentTimeMillis() / 1000 - startTime
         println(s"processed $amount requests, ${(1.0 * amount) / timeDiff} requests/sec")
       }
-    }.getOrElse(messagesErrored.incrementAndGet())
+    }.getOrElse {
+      messagesErrored.incrementAndGet()
+    }
   }
 
   def main(args: Array[String]): Unit = {
@@ -206,7 +210,9 @@ object Main {
 
     startTime = System.currentTimeMillis() / 1000
     if (backfillFrom == 0) {
-      val futures = client.listNewsgroups().map(group => Future { processGroup(group) })
+      val futures = client.listNewsgroups().map { group =>
+        Future { processGroup(group) }
+      }
       Await.ready(Future.sequence(futures.toList), Duration.Inf)
     } else {
       val futures = client.listNewsgroups().map(group => Future { processGroup(group, backfillFrom) })

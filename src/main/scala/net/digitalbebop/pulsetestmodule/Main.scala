@@ -46,6 +46,8 @@ class NaiveTrustManager extends X509TrustManager {
 
 object Main {
 
+  final val WEBNEWS = "https://webnews.csh.rit.edu/#!"
+
   var username: String = _
   var password: String = _
   var nntpServer: String = _
@@ -88,6 +90,7 @@ object Main {
     builder.setModuleName(moduleName)
     builder.addTags("news")
     builder.addTags(channel)
+    builder.setLocation(s"$WEBNEWS/$channel/$id")
     headers.get("From").map { from =>
         val splits = from.replaceAll("[\\(\\)\\<\\>\"]", "").toLowerCase.split(" ")
         splits.foreach(builder.addTags)

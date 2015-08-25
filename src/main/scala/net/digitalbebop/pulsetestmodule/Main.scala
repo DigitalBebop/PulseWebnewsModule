@@ -82,7 +82,7 @@ object Main {
     val builder = IndexRequest.newBuilder()
     builder.setIndexData(indexData.replaceAll("[\n\r]", ""));
 
-    builder.setMetaTags(new JSONObject(Map(("format", "text"), ("channel", channel))).toString())
+    builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
     headers.get("Date").foreach { dateStr =>
       parseDate(dateStr).foreach(builder.setTimestamp)
     }

@@ -21,4 +21,4 @@ assemblySettings
 
 jarName in assembly := "nntpModule.jar"
 
-mainClass in assembly := Some("net.digitalbebop.pulsetestmodule.Main")
+mainClass in assembly := Some("net.digitalbebop.pulsewebnewsmodule.Main")

@@ -10,6 +10,7 @@ import java.util.{Calendar, Properties}
 import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl._
 
+import com.google.protobuf.ByteString
 import net.digitalbebop.ClientRequests.IndexRequest
 import org.apache.commons.cli.{DefaultParser, Options}
 import org.apache.commons.io.IOUtils
@@ -80,7 +81,8 @@ object Main {
 
   def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
     val builder = IndexRequest.newBuilder()
-    builder.setIndexData(indexData.replaceAll("[\n\r]", ""));
+    builder.setIndexData(indexData.replaceAll("[\n\r]", " "));
+    builder.setRawData(ByteString.copyFrom(indexData.getBytes));
 
     builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
     headers.get("Date").foreach { dateStr =>

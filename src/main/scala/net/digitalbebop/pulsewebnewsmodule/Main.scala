@@ -1,4 +1,4 @@
-package net.digitalbebop.pulsetestmodule
+package net.digitalbebop.pulsewebnewsmodule
 
 
 import java.io.{FileInputStream, Reader}
@@ -81,8 +81,8 @@ object Main {
 
   def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
     val builder = IndexRequest.newBuilder()
-    builder.setIndexData(indexData.replaceAll("[\n\r]", " "));
-    builder.setRawData(ByteString.copyFrom(indexData.getBytes));
+    builder.setIndexData(indexData.replaceAll("[\n\r]", " "))
+    builder.setRawData(ByteString.copyFrom(indexData.getBytes))
 
     builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
     headers.get("Date").foreach { dateStr =>
@@ -147,14 +147,16 @@ object Main {
   def processMessage(client: NNTPClient, group: String, index: Long): Unit = {
     parseHeaders(client.retrieveArticleHeader(index)).map { headers =>
       val body = IOUtils.toString(client.retrieveArticleBody(index))
-      val message = createMessage(body, group, index, headers)
-      val post = new HttpPost(s"$apiServer/api/index")
-      post.setEntity(new ByteArrayEntity(message.toByteArray))
-      HttpClients.createDefault().execute(post)
-      val amount = messagesProcessed.incrementAndGet()
-      if (amount % 1000 == 0) {
-        val timeDiff = System.currentTimeMillis() / 1000 - startTime
-        println(s"processed $amount requests, ${(1.0 * amount) / timeDiff} requests/sec")
+      if (group != "cs.test") {
+        val message = createMessage(body, group, index, headers)
+        val post = new HttpPost(s"$apiServer/api/index")
+        post.setEntity(new ByteArrayEntity(message.toByteArray))
+        HttpClients.createDefault().execute(post)
+        val amount = messagesProcessed.incrementAndGet()
+        if (amount % 1000 == 0) {
+          val timeDiff = System.currentTimeMillis() / 1000 - startTime
+          println(s"processed $amount requests, ${(1.0 * amount) / timeDiff} requests/sec")
+        }
       }
     }.getOrElse {
       messagesErrored.incrementAndGet()

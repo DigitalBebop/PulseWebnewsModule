@@ -1,4 +1,4 @@
-package net.digitalbebop.pulsetestmodule
+package net.digitalbebop.pulsewebnewsmodule
 
 
 import java.io.{FileInputStream, Reader}
@@ -10,13 +10,14 @@ import java.util.{Calendar, Properties}
 import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl._
 
+import com.google.protobuf.ByteString
 import net.digitalbebop.ClientRequests.IndexRequest
 import org.apache.commons.cli.{DefaultParser, Options}
 import org.apache.commons.io.IOUtils
 import org.apache.commons.net.nntp.{NewsgroupInfo, NNTPClient}
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ByteArrayEntity
-import org.apache.http.impl.client.{CloseableHttpClient, HttpClients}
+import org.apache.http.impl.client.HttpClients
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.Duration
@@ -81,8 +82,9 @@ object Main {
   def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
     val builder = IndexRequest.newBuilder()
     builder.setIndexData(indexData.replaceAll("[\n\r]", " "));
+    builder.setRawData(ByteString.copyFrom(indexData.getBytes));
 
-    builder.setMetaTags(new JSONObject(Map(("format", "text"), ("channel", channel))).toString())
+    builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
     headers.get("Date").foreach { dateStr =>
       parseDate(dateStr).foreach(builder.setTimestamp)
     }
@@ -117,16 +119,14 @@ object Main {
     client.selectNewsgroup(group.getNewsgroup)
     val first = group.getFirstArticleLong
     val last = group.getLastArticleLong
-    val httpClient = HttpClients.createDefault()
     println(s"backfilling for ${group.getNewsgroup}")
     (first to last).foreach { index =>
-      processMessage(client, httpClient, group.getNewsgroup, index)
+      processMessage(client, group.getNewsgroup, index)
     }
   }
 
   def processGroup(group: NewsgroupInfo, startTimestamp: Long): Unit = {
     val client = new NNTPClient()
-    val httpClient = HttpClients.createDefault()
     client.setSocketFactory(getSocketFactory)
     client.connect(nntpServer, nntpPort)
     client.authenticate(username, password)
@@ -137,20 +137,21 @@ object Main {
       .filter { article =>
         parseDate(article.getDate).getOrElse(System.currentTimeMillis()) >= startTimestamp
       }.foreach { article =>
-        processMessage(client, httpClient, group.getNewsgroup, article.getArticleNumberLong)
+        processMessage(client, group.getNewsgroup, article.getArticleNumberLong)
       }
   }
 
   /**
    * Parses message and uploads it to the server
    */
-  def processMessage(client: NNTPClient, httpClient: CloseableHttpClient, group: String, index: Long): Unit = {
+  def processMessage(client: NNTPClient, group: String, index: Long): Unit = {
     parseHeaders(client.retrieveArticleHeader(index)).map { headers =>
       val body = IOUtils.toString(client.retrieveArticleBody(index))
       val message = createMessage(body, group, index, headers)
       val post = new HttpPost(s"$apiServer/api/index")
       post.setEntity(new ByteArrayEntity(message.toByteArray))
-      httpClient.execute(post)
+      val response = HttpClients.createDefault().execute(post)
+      response.close()
       val amount = messagesProcessed.incrementAndGet()
       if (amount % 1000 == 0) {
         val timeDiff = System.currentTimeMillis() / 1000 - startTime

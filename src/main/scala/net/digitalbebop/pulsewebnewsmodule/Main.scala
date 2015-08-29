@@ -151,7 +151,7 @@ object Main {
         val message = createMessage(body, group, index, headers)
         val post = new HttpPost(s"$apiServer/api/index")
         post.setEntity(new ByteArrayEntity(message.toByteArray))
-        HttpClients.createDefault().execute(post)
+        HttpClients.createDefault().execute(post).close()
         val amount = messagesProcessed.incrementAndGet()
         if (amount % 1000 == 0) {
           val timeDiff = System.currentTimeMillis() / 1000 - startTime

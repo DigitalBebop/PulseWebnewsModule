@@ -169,7 +169,7 @@ object Main {
 
     val options = new Options()
     options.addOption("config", true, "the configuration file to use")
-    options.addOption("since", true, "the epoch timestamp to backfill from, 0 for full backfill")
+    options.addOption("since", true, "the number of seconds to backfill for, 0 for full backfill")
 
     val parser = new DefaultParser()
     val cmd = parser.parse(options, args)
@@ -205,8 +205,8 @@ object Main {
       0L
     }
     val cal = Calendar.getInstance()
-    cal.setTimeInMillis(backfillFrom)
-    println(s"backfilling from ${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime)}")
+    cal.setTimeInMillis(System.currentTimeMillis() - backfillFrom * 1000)
+    println(s"backfilling everything since ${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime)}")
 
 
     val client = new NNTPClient()

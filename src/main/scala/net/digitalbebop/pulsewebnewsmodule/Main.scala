@@ -149,7 +149,7 @@ object Main {
   def processMessage(client: NNTPClient, group: String, index: Long): Unit = {
     parseHeaders(client.retrieveArticleHeader(index)).map { headers =>
       val body = IOUtils.toString(client.retrieveArticleBody(index))
-      if (group != "cs.test") {
+      if (!group.contains("test")) {
         val message = createMessage(body, group, index, headers)
         val post = new HttpPost(s"$apiServer/api/index")
         post.setEntity(new ByteArrayEntity(message.toByteArray))

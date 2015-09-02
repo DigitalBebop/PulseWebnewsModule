@@ -216,8 +216,9 @@ object Main {
     } else {
       0L
     }
+    val timestamp = System.currentTimeMillis() - backfillFrom * 1000
     val cal = Calendar.getInstance()
-    cal.setTimeInMillis(System.currentTimeMillis() - backfillFrom * 1000)
+    cal.setTimeInMillis(timestamp)
     println(s"backfilling everything since ${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime)}")
 
 
@@ -240,10 +241,11 @@ object Main {
         Await.ready(Future.sequence(futures.toList), Duration.Inf)
       } else {
         val futures = client.listNewsgroups().map(group => Future {
-          processGroup(group, backfillFrom)
+          processGroup(group, timestamp)
         })
         Await.ready(Future.sequence(futures.toList), Duration.Inf)
       }
+      ec.threadPool.shutdownNow()
       println(s"processed: $messagesProcessed messages in ${System.currentTimeMillis() / 1000 - startTime} seconds")
       println(s"${messagesErrored.get()} messaged were not processed due to errors")
     } else {

@@ -76,8 +76,10 @@ object Main {
   }
 
   def parseDate(str: String): Option[Long] =
-    Try(new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss Z").parse(str).getTime)
-    .orElse(Try(new SimpleDateFormat("dd MMM yyyy HH:mm:ss Z").parse(str).getTime)).toOption
+    Try(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z").parse(str).getTime)
+      .orElse(Try(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm Z").parse(str).getTime))
+      .orElse(Try(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss").parse(str).getTime))
+      .orElse(Try(new SimpleDateFormat("dd MMM yyyy HH:mm:ss Z").parse(str).getTime)).toOption
 
   def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
     val builder = IndexRequest.newBuilder()
@@ -85,9 +87,9 @@ object Main {
     builder.setRawData(ByteString.copyFrom(indexData.getBytes))
 
     builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
-    headers.get("Date").foreach { dateStr =>
-      parseDate(dateStr).foreach(builder.setTimestamp)
-    }
+    headers.get("Date").map { dateStr =>
+      parseDate(dateStr).map(builder.setTimestamp).getOrElse(println("could not get date for: " + dateStr))
+    }.getOrElse(println(headers))
     builder.setModuleId(channel + "-" + id.toString)
     builder.setModuleName(moduleName)
     builder.addTags("news")

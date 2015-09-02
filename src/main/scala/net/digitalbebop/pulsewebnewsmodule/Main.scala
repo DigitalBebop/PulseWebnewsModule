@@ -2,10 +2,11 @@ package net.digitalbebop.pulsewebnewsmodule
 
 
 import java.io.{FileInputStream, Reader}
+import java.net.{HttpURLConnection, URL}
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
-import java.util.concurrent.Executors
+import java.util.concurrent.{TimeUnit, Executors}
 import java.util.{Calendar, Properties}
 import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl._
@@ -17,7 +18,8 @@ import org.apache.commons.io.IOUtils
 import org.apache.commons.net.nntp.{NewsgroupInfo, NNTPClient}
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ByteArrayEntity
-import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.client.{HttpClientBuilder, DefaultHttpClient, HttpClients}
+import org.apache.http.params.{BasicHttpParams, HttpConnectionParams}
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.Duration
@@ -165,6 +167,16 @@ object Main {
     }
   }
 
+  def isUp(url: String): Boolean = try {
+    val con = new URL(url).openConnection().asInstanceOf[HttpURLConnection]
+    con.setRequestMethod("HEAD")
+    con.setConnectTimeout(5000) //set timeout to 5 seconds
+    con.getResponseCode()
+    true
+  } catch {
+    case ex: Exception => false
+  }
+
   def main(args: Array[String]): Unit = {
 
     val options = new Options()
@@ -180,7 +192,7 @@ object Main {
       val input = new FileInputStream(file)
       val props = new Properties()
       props.load(input)
-      
+
       username = props.getProperty("username")
       password = props.getProperty("password")
       nntpServer = props.getProperty("nntpServer")
@@ -217,17 +229,25 @@ object Main {
       sys.exit(1)
     }
 
-    startTime = System.currentTimeMillis() / 1000
-    if (backfillFrom == 0) {
-      val futures = client.listNewsgroups().map { group =>
-        Future { processGroup(group) }
+    if (isUp(apiServer)) {
+      startTime = System.currentTimeMillis() / 1000
+      if (backfillFrom == 0) {
+        val futures = client.listNewsgroups().map { group =>
+          Future {
+            processGroup(group)
+          }
+        }
+        Await.ready(Future.sequence(futures.toList), Duration.Inf)
+      } else {
+        val futures = client.listNewsgroups().map(group => Future {
+          processGroup(group, backfillFrom)
+        })
+        Await.ready(Future.sequence(futures.toList), Duration.Inf)
       }
-      Await.ready(Future.sequence(futures.toList), Duration.Inf)
+      println(s"processed: $messagesProcessed messages in ${System.currentTimeMillis() / 1000 - startTime} seconds")
+      println(s"${messagesErrored.get()} messaged were not processed due to errors")
     } else {
-      val futures = client.listNewsgroups().map(group => Future { processGroup(group, backfillFrom) })
-      Await.ready(Future.sequence(futures.toList), Duration.Inf)
+      println(s"server $apiServer does not seem to be up")
     }
-    println(s"processed: $messagesProcessed messages in ${System.currentTimeMillis() / 1000 - startTime} seconds")
-    println(s"${messagesErrored.get()} messaged were not processed due to errors")
   }
 }

@@ -83,26 +83,25 @@ object Main {
       .orElse(Try(new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss").parse(str).getTime))
       .orElse(Try(new SimpleDateFormat("dd MMM yyyy HH:mm:ss Z").parse(str).getTime)).toOption
 
-  def createMessage(indexData: String, channel: String, id: Long, headers: Map[String, String]): IndexRequest = {
+  case class Headers(subject: String, date: Long, username: String)
+
+  def createMessage(indexData: String, channel: String, id: Long, headers: Headers): IndexRequest = {
+    val metaData = Map(
+      "format" -> "text",
+      "title" -> headers.subject,
+      "channel" -> channel
+    )
     val builder = IndexRequest.newBuilder()
     builder.setIndexData(indexData.replaceAll("[\n\r]", " "))
     builder.setRawData(ByteString.copyFrom(indexData.getBytes))
-
-    builder.setMetaTags(new JSONObject(Map(("format", "text"), ("title", headers("Subject")), ("channel", channel))).toString())
-    headers.get("Date").map { dateStr =>
-      parseDate(dateStr).map(builder.setTimestamp).getOrElse(println("could not get date for: " + dateStr))
-    }.getOrElse(println(headers))
+    builder.setMetaTags(new JSONObject(metaData).toString())
+    builder.setTimestamp(headers.date)
     builder.setModuleId(channel + "-" + id.toString)
     builder.setModuleName(moduleName)
     builder.addTags("news")
     builder.addTags(channel)
     builder.setLocation(s"$WEBNEWS/$channel/$id")
-    headers.get("From").map { from =>
-        val splits = from.replaceAll("[\\(\\)\\<\\>\"]", "").toLowerCase.split(" ")
-        splits.foreach(builder.addTags)
-        val email = splits.last
-        builder.setUsername(email.split("@").head.replace(")", ""))
-    }
+    builder.setUsername(headers.username)
     builder.build()
   }
 
@@ -112,6 +111,24 @@ object Main {
       val splits = line.split(":", 2).take(2).map(_.trim)
       (splits(0), splits(1))
     }.toMap
+  }
+
+  def getHeaders(reader: Reader): Try[Headers] = Try {
+    var username: String = ""
+    var timestamp: Long = 0
+    var subject: String = ""
+
+    IOUtils.toString(reader).split("\n").foreach { line =>
+      if (line.startsWith("From:")) {
+        val email = line.replaceAll("[\\(\\)\\<\\>\"]", "").toLowerCase.split(" ").last
+        username = email.split("@").head.replace(")", "")
+      } else if (line.startsWith("Date:")) {
+        timestamp = parseDate(line.drop(6).trim).get
+      } else if (line.startsWith("Subject:")) {
+        subject = line.drop(8).trim
+      }
+    }
+    Headers(subject, timestamp, username)
   }
 
   def processGroup(group: NewsgroupInfo): Unit = {
@@ -149,7 +166,7 @@ object Main {
    * Parses message and uploads it to the server
    */
   def processMessage(client: NNTPClient, group: String, index: Long): Unit = {
-    parseHeaders(client.retrieveArticleHeader(index)).map { headers =>
+    getHeaders(client.retrieveArticleHeader(index)).map { headers =>
       val body = IOUtils.toString(client.retrieveArticleBody(index))
       if (!group.contains("test")) {
         val message = createMessage(body, group, index, headers)

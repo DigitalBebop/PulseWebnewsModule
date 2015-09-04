@@ -15,9 +15,10 @@ libraryDependencies ++= Seq("commons-net" % "commons-net" % "3.3",
   "org.apache.httpcomponents" % "httpclient" % "4.5",
   "commons-io" % "commons-io" % "2.4",
   "org.apache.httpcomponents" % "httpclient" % "4.5",
-  "commons-cli" % "commons-cli" % "1.3.1")
+  "commons-cli" % "commons-cli" % "1.3.1",
+  "com.google.code.gson" % "gson" % "2.3.1")
 
-assemblySettings
+    assemblySettings
 
 jarName in assembly := "nntpModule.jar"
 
